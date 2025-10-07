@@ -10,18 +10,18 @@ const fileInput = document.getElementById('file-input');
 const uploadButton = document.getElementById('upload-button');
 const refreshButton = document.getElementById('refresh-button');
 const logoutButton = document.getElementById('logout-button');
-const sessionControls = document.querySelector('.session-controls');
 const fileList = document.getElementById('file-list');
 const fileCount = document.getElementById('file-count');
 const statusEl = document.getElementById('status');
 const previewSection = document.getElementById('preview');
-const previewImage = document.getElementById('preview-image');
+const previewContent = document.getElementById('preview-content');
 const previewCaption = document.getElementById('preview-caption');
 const closePreview = document.getElementById('close-preview');
 
 const state = {
   user: null,
   chunkSize: 8 * 1024 * 1024,
+  files: [],
 };
 
 const endpoints = {
@@ -74,6 +74,41 @@ const setStatus = (message, variant = 'info', timeout = 3000) => {
     }, timeout);
   }
 };
+const copyToClipboard = async (url, successMessage) => {
+  if (!url) {
+    throw new Error('Link unavailable.');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(url);
+      if (successMessage) {
+        setStatus(successMessage, 'success');
+      }
+      return;
+    } catch (error) {
+      console.error('Clipboard write failed:', error);
+    }
+  }
+  window.prompt('Copy this link', url);
+  if (successMessage) {
+    setStatus(successMessage, 'info');
+  }
+  return;
+};
+
+const setButtonLabel = (button, text, icon) => {
+  button.innerHTML = '';
+  if (icon) {
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'btn-icon';
+    iconSpan.textContent = icon;
+    button.appendChild(iconSpan);
+  }
+  const labelSpan = document.createElement('span');
+  labelSpan.textContent = text;
+  button.appendChild(labelSpan);
+};
+
 
 const setAuthStatus = (user) => {
   state.user = user;
@@ -92,26 +127,27 @@ const setAuthStatus = (user) => {
     logoutButton.classList.add('hidden');
     appShell.classList.add('hidden');
     authCard.classList.remove('hidden');
+    state.files = [];
     renderEmptyState('Sign in to load files.');
     clearPreview();
   }
 };
 
 const clearPreview = () => {
-  previewImage.removeAttribute('src');
+  previewContent.innerHTML = '';
   previewCaption.textContent = '';
   previewSection.classList.remove('active');
 };
 
 const renderEmptyState = (message) => {
-  const row = document.createElement('tr');
-  const cell = document.createElement('td');
-  cell.colSpan = 3;
-  cell.className = 'file-meta';
-  cell.textContent = message;
-  row.appendChild(cell);
-  fileList.replaceChildren(row);
+  const empty = document.createElement('div');
+  empty.className = 'file-empty';
+  empty.textContent = message;
+  fileList.replaceChildren(empty);
   fileCount.textContent = '';
+  if (previewSection.classList.contains('active')) {
+    clearPreview();
+  }
 };
 
 const apiFetch = async (input, options = {}) => {
@@ -162,6 +198,83 @@ const toggleVisibility = async (id, nextState) => {
   }
 };
 
+const showPreview = async (file) => {
+  if (!file || !file.previewUrl || !file.previewType) {
+    throw new Error('Preview not available for this file.');
+  }
+
+  previewSection.classList.add('active');
+  previewCaption.textContent = file.name;
+  previewContent.innerHTML = "<span class='file-meta'>Loading preview…</span>";
+
+  const previewUrl = `${file.previewUrl}?t=${Date.now()}`;
+
+  try {
+    if (file.previewType === 'image') {
+      const img = document.createElement('img');
+      img.alt = file.name;
+      img.src = previewUrl;
+      previewContent.innerHTML = '';
+      previewContent.appendChild(img);
+      return;
+    }
+
+    if (file.previewType === 'video') {
+      const video = document.createElement('video');
+      video.controls = true;
+      video.preload = 'metadata';
+      video.playsInline = true;
+      video.src = previewUrl;
+      previewContent.innerHTML = '';
+      previewContent.appendChild(video);
+      return;
+    }
+
+    if (file.previewType === 'audio') {
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.src = previewUrl;
+      previewContent.innerHTML = '';
+      previewContent.appendChild(audio);
+      return;
+    }
+
+    if (file.previewType === 'pdf') {
+      const frame = document.createElement('iframe');
+      frame.src = previewUrl;
+      frame.title = `Preview of ${file.name}`;
+      frame.setAttribute('loading', 'lazy');
+      frame.setAttribute('frameborder', '0');
+      previewContent.innerHTML = '';
+      previewContent.appendChild(frame);
+      return;
+    }
+
+    if (file.previewType === 'text') {
+      const response = await fetch(previewUrl, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to load preview.');
+      }
+      const text = await response.text();
+      const pre = document.createElement('pre');
+      const limit = 20000;
+      if (text.length > limit) {
+        pre.textContent = `${text.slice(0, limit)}\n… truncated for preview`;
+      } else {
+        pre.textContent = text;
+      }
+      previewContent.innerHTML = '';
+      previewContent.appendChild(pre);
+      return;
+    }
+
+    throw new Error('Preview not available for this file.');
+  } catch (error) {
+    previewContent.innerHTML = "<span class='file-meta'>Unable to load preview.</span>";
+    throw error instanceof Error ? error : new Error('Failed to load preview.');
+  }
+};
+
 const handleFetchError = async (response) => {
   let errorMessage = response.statusText || 'Request failed.';
   try {
@@ -185,82 +298,120 @@ const renderFiles = (files) => {
   }
 
   fileList.replaceChildren();
-  fileCount.textContent = `${files.length} file${files.length > 1 ? 's' : ''}`;
+  fileCount.textContent = files.length === 1 ? '1 file' : `${files.length} files`;
 
   files.forEach((file) => {
-    const row = document.createElement('tr');
-    row.dataset.fileId = file.id;
+    const card = document.createElement('article');
+    card.className = 'file-card';
+    card.dataset.fileId = file.id;
+    card.setAttribute('role', 'listitem');
 
-    const nameCell = document.createElement('td');
+    const header = document.createElement('header');
+    header.className = 'file-row';
+    const titleWrapper = document.createElement('div');
+    titleWrapper.className = 'file-info';
     const nameEl = document.createElement('div');
     nameEl.className = 'file-name';
     nameEl.textContent = file.name;
     const metaEl = document.createElement('div');
     metaEl.className = 'file-meta';
-    const visibilityLabel = file.isPublic ? 'Public' : 'Private';
-    metaEl.textContent = `${file.mimeType} • ${formatBytes(file.size)} • ${formatDateTime(
-      file.uploadedAt
-    )} • ${visibilityLabel}`;
-    nameCell.append(nameEl, metaEl);
+    metaEl.textContent = `${file.mimeType} • ${formatBytes(file.size)} • ${formatDateTime(file.uploadedAt)}`;
 
-    const sizeCell = document.createElement('td');
-    sizeCell.textContent = formatBytes(file.size);
+    titleWrapper.append(nameEl, metaEl);
+    header.appendChild(titleWrapper);
 
-    const actionsCell = document.createElement('td');
+    const badges = document.createElement('div');
+    badges.className = 'file-badges';
+    const visibilityBadge = document.createElement('span');
+    visibilityBadge.className = `file-badge ${file.isPublic ? 'is-public' : 'is-private'}`;
+    visibilityBadge.textContent = file.isPublic ? 'Public' : 'Private';
+    badges.appendChild(visibilityBadge);
+
+    if (file.previewType) {
+      const previewBadge = document.createElement('span');
+      previewBadge.className = 'file-badge is-preview';
+      previewBadge.textContent = `${file.previewType.toUpperCase()} preview`;
+      badges.appendChild(previewBadge);
+    }
+
+    header.appendChild(badges);
+    card.appendChild(header);
+
     const actions = document.createElement('div');
-    actions.className = 'actions';
+    actions.className = 'file-actions';
 
-    if (file.isImage && file.previewUrl) {
+    if (file.previewUrl && file.previewType) {
+      const previewGroup = document.createElement('div');
+      previewGroup.className = 'action-group group-preview';
       const previewBtn = document.createElement('button');
       previewBtn.type = 'button';
       previewBtn.className = 'ghost';
       previewBtn.dataset.action = 'preview';
       previewBtn.dataset.id = file.id;
       previewBtn.dataset.name = file.name;
-      previewBtn.textContent = 'Preview';
-      actions.appendChild(previewBtn);
+      previewBtn.dataset.previewType = file.previewType;
+      setButtonLabel(previewBtn, 'Preview', '▶');
+      previewGroup.appendChild(previewBtn);
+
+      const previewCopyBtn = document.createElement('button');
+      previewCopyBtn.type = 'button';
+      previewCopyBtn.className = 'ghost secondary';
+      previewCopyBtn.dataset.action = 'copy-preview';
+      previewCopyBtn.dataset.id = file.id;
+      previewCopyBtn.dataset.url = new URL(file.previewUrl, window.location.origin).href;
+      setButtonLabel(previewCopyBtn, 'Copy preview', '🔗');
+      previewGroup.appendChild(previewCopyBtn);
+
+      actions.appendChild(previewGroup);
     }
 
+    const downloadGroup = document.createElement('div');
+    downloadGroup.className = 'action-group group-download';
     const downloadBtn = document.createElement('button');
     downloadBtn.type = 'button';
-    downloadBtn.className = 'ghost';
+    downloadBtn.className = 'primary';
     downloadBtn.dataset.action = 'download';
     downloadBtn.dataset.id = file.id;
-    downloadBtn.textContent = 'Download';
-    actions.appendChild(downloadBtn);
+    setButtonLabel(downloadBtn, 'Download', '⬇');
+    downloadGroup.appendChild(downloadBtn);
 
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.className = 'ghost';
-    copyBtn.dataset.action = 'copy-link';
-    copyBtn.dataset.id = file.id;
-    copyBtn.dataset.url = `${window.location.origin}${file.downloadUrl}`;
-    copyBtn.textContent = 'Copy Link';
-    actions.appendChild(copyBtn);
+    const downloadCopyBtn = document.createElement('button');
+    downloadCopyBtn.type = 'button';
+    downloadCopyBtn.className = 'ghost secondary';
+    downloadCopyBtn.dataset.action = 'copy-download';
+    downloadCopyBtn.dataset.id = file.id;
+    downloadCopyBtn.dataset.url = new URL(file.downloadUrl, window.location.origin).href;
+    setButtonLabel(downloadCopyBtn, 'Copy download', '🔗');
+    downloadGroup.appendChild(downloadCopyBtn);
+
+    actions.appendChild(downloadGroup);
+
+    const manageGroup = document.createElement('div');
+    manageGroup.className = 'action-group group-manage';
 
     const toggleBtn = document.createElement('button');
     toggleBtn.type = 'button';
-    toggleBtn.className = 'ghost';
+    toggleBtn.className = 'ghost secondary';
     toggleBtn.dataset.action = 'toggle-visibility';
     toggleBtn.dataset.id = file.id;
     toggleBtn.dataset.state = file.isPublic ? 'public' : 'private';
-    toggleBtn.textContent = file.isPublic ? 'Make Private' : 'Make Public';
-    actions.appendChild(toggleBtn);
+    setButtonLabel(toggleBtn, file.isPublic ? 'Make private' : 'Make public', file.isPublic ? '🔒' : '🔓');
+    manageGroup.appendChild(toggleBtn);
 
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'danger';
     deleteBtn.dataset.action = 'delete';
     deleteBtn.dataset.id = file.id;
-    deleteBtn.textContent = 'Delete';
-    actions.appendChild(deleteBtn);
+    setButtonLabel(deleteBtn, 'Delete', '✕');
+    manageGroup.appendChild(deleteBtn);
 
-    actionsCell.appendChild(actions);
-
-    row.append(nameCell, sizeCell, actionsCell);
-    fileList.appendChild(row);
+    actions.appendChild(manageGroup);
+    card.appendChild(actions);
+    fileList.appendChild(card);
   });
 };
+
 
 const fetchFiles = async () => {
   if (!state.user) {
@@ -275,11 +426,13 @@ const fetchFiles = async () => {
       await handleFetchError(response);
     }
     const payload = await response.json();
-    renderFiles(payload.files || []);
+    state.files = payload.files || [];
+    renderFiles(state.files);
   } catch (error) {
     if (error.message === 'Authentication required.') {
       return;
     }
+    state.files = [];
     setStatus(error.message, 'error', 5000);
     renderEmptyState(error.message || 'Unable to load files.');
   }
@@ -297,16 +450,14 @@ fileList.addEventListener('click', async (event) => {
     return;
   }
 
-  if (action === 'copy-link') {
-    const url = target.dataset.url || `${window.location.origin}${endpoints.download(fileId)}`;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(() => {
-        setStatus('Download link copied to clipboard.', 'success');
-      }).catch(() => {
-        window.prompt('Copy this download link', url);
-      });
-    } else {
-      window.prompt('Copy this download link', url);
+  if (action === 'copy-download' || action === 'copy-preview') {
+    const url = target.dataset.url || (action === 'copy-download'
+      ? `${window.location.origin}${endpoints.download(fileId)}`
+      : `${window.location.origin}${endpoints.preview(fileId)}`);
+    try {
+      await copyToClipboard(url, action === 'copy-download' ? 'Download link copied to clipboard.' : 'Preview link copied to clipboard.');
+    } catch (error) {
+      setStatus(error.message || 'Unable to copy link.', 'error', 4000);
     }
     return;
   }
@@ -318,9 +469,16 @@ fileList.addEventListener('click', async (event) => {
   }
 
   if (action === 'preview') {
-    previewImage.src = `${endpoints.preview(fileId)}?t=${Date.now()}`;
-    previewCaption.textContent = target.dataset.name || '';
-    previewSection.classList.add('active');
+    const file = state.files.find((item) => item.id === fileId);
+    if (!file) {
+      setStatus('Preview metadata not available.', 'error', 4000);
+      return;
+    }
+    try {
+      await showPreview(file);
+    } catch (error) {
+      setStatus(error.message, 'error', 5000);
+    }
     return;
   }
 
@@ -343,6 +501,7 @@ fileList.addEventListener('click', async (event) => {
     }
   }
 });
+
 
 loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
