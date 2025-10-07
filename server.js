@@ -41,6 +41,87 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.oasis.opendocument.text', 'application/vnd.oasis.opendocument.spreadsheet', 'application/vnd.oasis.opendocument.presentation',
   'application/rtf',
 ]);
+const TEXT_MIME_TYPES = new Set([
+  'application/json',
+  'application/javascript',
+  'application/xml',
+  'application/x-yaml',
+  'application/yaml',
+  'application/x-sh',
+  'application/x-shellscript',
+  'application/x-httpd-php',
+  'application/sql',
+  'application/x-sql',
+]);
+
+const getPreviewType = (mimeType = '') => {
+  if (!mimeType) return null;
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('text/') || TEXT_MIME_TYPES.has(mimeType)) return 'text';
+  return null;
+};
+
+const parseRange = (rangeHeader, size) => {
+  if (!rangeHeader || !rangeHeader.startsWith('bytes=')) {
+    return null;
+  }
+  const [rawStart, rawEnd] = rangeHeader.replace(/bytes=/, '').split('-');
+  let start = Number(rawStart);
+  let end = Number(rawEnd);
+
+  if (Number.isNaN(start)) {
+    start = size - end;
+    end = size - 1;
+  }
+  if (Number.isNaN(end) || end >= size) {
+    end = size - 1;
+  }
+  if (start < 0 || start > end || end >= size) {
+    return null;
+  }
+  return { start, end, size };
+};
+
+const streamWithRange = async (req, res, filePath, mimeType, { inlineName } = {}) => {
+  const stats = await fsp.stat(filePath);
+  const range = parseRange(req.headers.range, stats.size);
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Content-Type', mimeType || 'application/octet-stream');
+
+  if (inlineName) {
+    const encoded = encodeURIComponent(inlineName).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+    res.setHeader('Content-Disposition', `inline; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+  }
+
+  if (range) {
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${range.size}`);
+    res.setHeader('Content-Length', range.end - range.start + 1);
+    const stream = fs.createReadStream(filePath, { start: range.start, end: range.end });
+    stream.on('error', (err) => {
+      console.error('Preview stream error:', err);
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    });
+    stream.pipe(res);
+    return;
+  }
+
+  res.setHeader('Content-Length', stats.size);
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', (err) => {
+    console.error('Preview stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).end();
+    }
+  });
+  stream.pipe(res);
+};
+
 
 const sanitizeFilename = (originalName) => {
   const base = path.basename(originalName);
@@ -63,10 +144,14 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const mimeType = file.mimetype || mime.lookup(file.originalname) || '';
-    if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME_TYPES.has(mimeType)) {
-      return cb(new Error('Unsupported file type.'));
+    const detectedMime = file.mimetype || mime.lookup(file.originalname) || 'application/octet-stream';
+
+    if (!ALLOWED_EXTENSIONS.has(ext) && !ALLOWED_MIME_TYPES.has(detectedMime)) {
+      file.mimetype = 'application/octet-stream';
+    } else if (!file.mimetype) {
+      file.mimetype = detectedMime;
     }
+
     cb(null, true);
   },
 });
@@ -84,19 +169,22 @@ const ensureUploadsDir = async () => {
 const presentFile = (file) => {
   const mimeType = file.mimeType || 'application/octet-stream';
   const uploadedAt = file.uploadedAt instanceof Date ? file.uploadedAt.toISOString() : file.uploadedAt;
+  const previewType = getPreviewType(mimeType);
   return {
     id: file.id,
     name: file.originalName,
     size: file.size,
     mimeType,
     uploadedAt,
-    isImage: mimeType.startsWith(IMAGE_MIME_PREFIX),
-    isVideo: mimeType.startsWith('video/'),
+    isImage: previewType === 'image',
+    isVideo: previewType === 'video',
+    isAudio: previewType === 'audio',
+    isPdf: previewType === 'pdf',
+    isText: previewType === 'text',
     isPublic: Boolean(file.isPublic),
+    previewType,
     downloadUrl: `/api/files/${file.id}/download`,
-    previewUrl: mimeType.startsWith(IMAGE_MIME_PREFIX)
-      ? `/api/files/${file.id}/preview`
-      : null,
+    previewUrl: previewType ? `/api/files/${file.id}/preview` : null,
     publicUrl: file.isPublic ? `/api/files/${file.id}/download` : null,
   };
 };
@@ -365,8 +453,8 @@ app.post('/api/upload/chunk', requireAuth, chunkUpload.single('chunk'), async (r
 });
 
 app.get('/api/files/:id/preview', async (req, res) => {
-  const fileId = Number(req.params.id);
-  if (!Number.isFinite(fileId)) {
+  const fileId = req.params.id ? String(req.params.id).trim() : '';
+  if (!fileId) {
     return res.status(400).json({ error: 'Invalid file id.' });
   }
 
@@ -382,24 +470,55 @@ app.get('/api/files/:id/preview', async (req, res) => {
 
     const filePath = path.join(UPLOAD_DIR, file.storedName);
     const mimeType = file.mimeType || mime.lookup(file.storedName) || 'application/octet-stream';
+    const previewType = getPreviewType(mimeType);
 
-    if (!mimeType.startsWith(IMAGE_MIME_PREFIX)) {
-      return res.status(400).json({ error: 'Preview not available for this file.' });
+    if (!previewType) {
+      return res.status(415).json({ error: 'Preview not available for this file.' });
     }
 
     await fsp.access(filePath);
 
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Cache-Control', 'no-store');
+    if (previewType === 'image') {
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Cache-Control', 'no-store');
+      const stream = fs.createReadStream(filePath);
+      stream.on('error', (err) => {
+        console.error('Failed to stream preview:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to stream preview.' });
+        }
+      });
+      stream.pipe(res);
+      return;
+    }
 
-    const stream = fs.createReadStream(filePath);
-    stream.on('error', (err) => {
-      console.error('Failed to stream preview:', err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to stream preview.' });
-      }
-    });
-    stream.pipe(res);
+    if (previewType === 'video' || previewType === 'audio') {
+      res.setHeader('Cache-Control', 'no-store');
+      await streamWithRange(req, res, filePath, mimeType, { inlineName: file.originalName });
+      return;
+    }
+
+    if (previewType === 'pdf') {
+      res.setHeader('Cache-Control', 'no-store');
+      await streamWithRange(req, res, filePath, mimeType, { inlineName: file.originalName });
+      return;
+    }
+
+    if (previewType === 'text') {
+      res.setHeader('Content-Type', `${mimeType}; charset=utf-8`);
+      res.setHeader('Cache-Control', 'no-store');
+      const stream = fs.createReadStream(filePath, { encoding: 'utf8' });
+      stream.on('error', (err) => {
+        console.error('Failed to stream preview:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to stream preview.' });
+        }
+      });
+      stream.pipe(res);
+      return;
+    }
+
+    return res.status(415).json({ error: 'Preview not available for this file.' });
   } catch (error) {
     if (error.code === 'ENOENT') {
       return res.status(404).json({ error: 'File not found.' });
@@ -428,30 +547,9 @@ const setAttachmentHeaders = (res, fileName, mimeType, dataLength, range) => {
   );
 };
 
-const parseRange = (rangeHeader, size) => {
-  if (!rangeHeader || !rangeHeader.startsWith('bytes=')) {
-    return null;
-  }
-  const [rawStart, rawEnd] = rangeHeader.replace(/bytes=/, '').split('-');
-  let start = Number(rawStart);
-  let end = Number(rawEnd);
-
-  if (Number.isNaN(start)) {
-    start = size - end;
-    end = size - 1;
-  }
-  if (Number.isNaN(end) || end >= size) {
-    end = size - 1;
-  }
-  if (start < 0 || start > end || end >= size) {
-    return null;
-  }
-  return { start, end, size };
-};
-
 app.get('/api/files/:id/download', async (req, res) => {
-  const fileId = Number(req.params.id);
-  if (!Number.isFinite(fileId)) {
+  const fileId = req.params.id ? String(req.params.id).trim() : '';
+  if (!fileId) {
     return res.status(400).json({ error: 'Invalid file id.' });
   }
 
@@ -501,8 +599,8 @@ app.get('/api/files/:id/download', async (req, res) => {
 });
 
 app.patch('/api/files/:id/visibility', requireAuth, async (req, res) => {
-  const fileId = Number(req.params.id);
-  if (!Number.isFinite(fileId)) {
+  const fileId = req.params.id ? String(req.params.id).trim() : '';
+  if (!fileId) {
     return res.status(400).json({ error: 'Invalid file id.' });
   }
 
@@ -534,8 +632,8 @@ app.patch('/api/files/:id/visibility', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/files/:id', requireAuth, async (req, res) => {
-  const fileId = Number(req.params.id);
-  if (!Number.isFinite(fileId)) {
+  const fileId = req.params.id ? String(req.params.id).trim() : '';
+  if (!fileId) {
     return res.status(400).json({ error: 'Invalid file id.' });
   }
 
