@@ -7,9 +7,10 @@ A hardened file management console built with Express, Multer, Prisma ORM, and M
 - **Authentication** – Session-based username/password login secured with bcrypt hashes.
 - **Prisma-powered data layer** – Declarative schema, safe migrations, and typed access via Prisma Client.
 - **Resumable uploads** – Chunked upload pipeline (default 8 MB chunks) with automatic assembly and validation up to 150 MB.
-- **Link sharing** – Toggle per-file visibility for public downloads and copy shareable links instantly.
+- **Link sharing** – Toggle per-file visibility for public downloads and copy shareable download/preview links instantly.
 - **Safe file handling** – Sanitised filenames, strict MIME/extension allowlist (images, documents, archives, video), configurable chunk size.
 - **Media-friendly downloads** – HTTP Range support for partial downloads/streaming.
+- **Rich previews** – View images, video/audio, PDFs, and text files directly in the browser.
 - **Responsive UI** – Modern front-end with login flow, status feedback, progress indicators, and preview panel.
 
 ## Getting Started (local)
