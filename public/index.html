@@ -375,15 +375,122 @@
         background: rgba(148, 163, 184, 0.08);
       }
 
+      .preview-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .preview-modal.hidden {
+        display: none;
+      }
+
+      .preview-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(6px);
+      }
+
+      .preview-dialog {
+        position: relative;
+        width: min(960px, 92vw);
+        max-height: 90vh;
+        background: var(--card);
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        box-shadow: 0 30px 60px -45px rgba(15, 23, 42, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.2rem 1.4rem 1.4rem;
+        z-index: 1;
+      }
+
+      .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .preview-header-text {
+        min-width: 0;
+      }
+
+      #preview-title {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .preview-actions {
+        display: inline-flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
       .preview-content {
-        margin-top: 1rem;
         border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 0.75rem;
+        padding: 0.9rem;
         background: rgba(148, 163, 184, 0.08);
         display: grid;
         place-items: center;
-        min-height: 200px;
+        min-height: 240px;
+        max-height: 90vh;
+        overflow: auto;
+      }
+
+      .preview-content iframe,
+      .preview-content video,
+      .preview-content audio,
+      .preview-content img {
+        width: 100%;
+        max-height: 65vh;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.04);
+      }
+
+      .preview-content img {
+        height: auto;
+        object-fit: contain;
+      }
+
+      .preview-content iframe {
+        min-height: 60vh;
+      }
+
+      .preview-content pre {
+        width: 100%;
+        max-height: 55vh;
+        overflow: auto;
+        margin: 0;
+        font-size: 0.95rem;
+        line-height: 1.45;
+      }
+
+      .preview-content audio {
+        width: 100%;
+      }
+
+      @media (max-width: 680px) {
+        .preview-dialog {
+          width: 94vw;
+          padding: 1rem;
+        }
+
+        .preview-actions {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .preview-actions button {
+          flex: 1 1 auto;
+        }
       }
 
       .preview-content iframe,
@@ -539,14 +646,23 @@
         </div>
       </section>
 
-      <section id="preview" class="card" aria-label="File preview">
-        <header style="display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 1.2rem;">Preview</h2>
-          <button id="close-preview" class="ghost" type="button">Close</button>
-        </header>
-        <div id="preview-content" class="preview-content"></div>
-        <p id="preview-caption" class="caption"></p>
-      </section>
+      <div id="preview-modal" class="preview-modal hidden" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+        <div class="preview-backdrop"></div>
+        <div class="preview-dialog">
+          <header class="preview-header">
+            <div class="preview-header-text">
+              <h2 id="preview-title">Preview</h2>
+              <p id="preview-caption" class="caption"></p>
+            </div>
+            <div class="preview-actions">
+              <button id="preview-copy" class="ghost secondary" type="button">Copy preview</button>
+              <button id="preview-download" class="primary" type="button">Download</button>
+              <button id="close-preview" class="ghost" type="button" aria-label="Close preview">✕</button>
+            </div>
+          </header>
+          <div id="preview-content" class="preview-content"></div>
+        </div>
+      </div>
     </main>
 
     <script src="/app.js" defer></script>

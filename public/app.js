@@ -13,9 +13,13 @@ const logoutButton = document.getElementById('logout-button');
 const fileList = document.getElementById('file-list');
 const fileCount = document.getElementById('file-count');
 const statusEl = document.getElementById('status');
-const previewSection = document.getElementById('preview');
+const previewModal = document.getElementById('preview-modal');
+const previewBackdrop = previewModal.querySelector('.preview-backdrop');
+const previewDialog = previewModal.querySelector('.preview-dialog');
 const previewContent = document.getElementById('preview-content');
 const previewCaption = document.getElementById('preview-caption');
+const previewCopyBtn = document.getElementById('preview-copy');
+const previewDownloadBtn = document.getElementById('preview-download');
 const closePreview = document.getElementById('close-preview');
 
 const state = {
@@ -109,6 +113,13 @@ const setButtonLabel = (button, text, icon) => {
   button.appendChild(labelSpan);
 };
 
+const closePreviewModal = () => {
+  previewModal.classList.add('hidden');
+  previewDialog.setAttribute('aria-hidden', 'true');
+  previewContent.innerHTML = '';
+  previewCaption.textContent = '';
+};
+
 
 const setAuthStatus = (user) => {
   state.user = user;
@@ -136,7 +147,10 @@ const setAuthStatus = (user) => {
 const clearPreview = () => {
   previewContent.innerHTML = '';
   previewCaption.textContent = '';
-  previewSection.classList.remove('active');
+  previewCopyBtn.dataset.url = '';
+  previewDownloadBtn.dataset.url = '';
+  previewModal.classList.add('hidden');
+  previewDialog.setAttribute('aria-hidden', 'true');
 };
 
 const renderEmptyState = (message) => {
@@ -145,7 +159,7 @@ const renderEmptyState = (message) => {
   empty.textContent = message;
   fileList.replaceChildren(empty);
   fileCount.textContent = '';
-  if (previewSection.classList.contains('active')) {
+  if (!previewModal.classList.contains('hidden')) {
     clearPreview();
   }
 };
@@ -199,12 +213,15 @@ const toggleVisibility = async (id, nextState) => {
 };
 
 const showPreview = async (file) => {
-  if (!file || !file.previewUrl || !file.previewType) {
+  if (!file || !file.previewType) {
     throw new Error('Preview not available for this file.');
   }
 
-  previewSection.classList.add('active');
+  previewModal.classList.remove('hidden');
+  previewDialog.setAttribute('aria-hidden', 'false');
   previewCaption.textContent = file.name;
+  previewCopyBtn.dataset.url = file.previewUrl ? new URL(file.previewUrl, window.location.origin).href : '';
+  previewDownloadBtn.dataset.url = new URL(file.downloadUrl, window.location.origin).href;
   previewContent.innerHTML = "<span class='file-meta'>Loading preview…</span>";
 
   const previewUrl = `${file.previewUrl}?t=${Date.now()}`;
@@ -451,9 +468,10 @@ fileList.addEventListener('click', async (event) => {
   }
 
   if (action === 'copy-download' || action === 'copy-preview') {
+    const file = state.files.find((item) => item.id === fileId);
     const url = target.dataset.url || (action === 'copy-download'
-      ? `${window.location.origin}${endpoints.download(fileId)}`
-      : `${window.location.origin}${endpoints.preview(fileId)}`);
+      ? (file ? new URL(file.downloadUrl, window.location.origin).href : undefined)
+      : (file && file.previewUrl ? new URL(file.previewUrl, window.location.origin).href : undefined));
     try {
       await copyToClipboard(url, action === 'copy-download' ? 'Download link copied to clipboard.' : 'Preview link copied to clipboard.');
     } catch (error) {
@@ -653,6 +671,24 @@ refreshButton.addEventListener('click', () => {
 });
 
 closePreview.addEventListener('click', clearPreview);
+previewBackdrop.addEventListener('click', clearPreview);
+previewDownloadBtn.addEventListener('click', (event) => {
+  const url = previewDownloadBtn.dataset.url;
+  if (!url) {
+    setStatus('Download unavailable for this preview.', 'error', 4000);
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
+});
+
+previewCopyBtn.addEventListener('click', async () => {
+  const url = previewCopyBtn.dataset.url;
+  try {
+    await copyToClipboard(url, 'Preview link copied to clipboard.');
+  } catch (error) {
+    setStatus(error.message || 'Unable to copy preview link.', 'error', 4000);
+  }
+});
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
