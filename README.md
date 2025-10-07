@@ -10,7 +10,7 @@ A hardened file management console built with Express, Multer, Prisma ORM, and M
 - **Link sharing** – Toggle per-file visibility for public downloads and copy shareable download/preview links instantly.
 - **Safe file handling** – Sanitised filenames, strict MIME/extension allowlist (images, documents, archives, video), configurable chunk size.
 - **Media-friendly downloads** – HTTP Range support for partial downloads/streaming.
-- **Rich previews** – View images, video/audio, PDFs, and text files directly in the browser.
+- **Rich previews** – View images, video/audio, PDFs, and text in a modal viewer with shareable links.
 - **Responsive UI** – Modern front-end with login flow, status feedback, progress indicators, and preview panel.
 
 ## Getting Started (local)
