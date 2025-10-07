@@ -104,7 +104,7 @@
       input[type='file']::file-selector-button {
         background: var(--accent);
         color: #fff;
-        border: none;
+        border: 1px solid transparent;
         border-radius: 8px;
         padding: 0.6rem 1.05rem;
         font-size: 0.95rem;
@@ -118,7 +118,7 @@
 
       button {
         cursor: pointer;
-        border: none;
+        border: 1px solid transparent;
         border-radius: 999px;
         padding: 0.6rem 1.1rem;
         font-size: 0.95rem;
@@ -130,24 +130,40 @@
       }
 
       button.primary {
-        background: var(--accent);
-        color: #fff;
-        box-shadow: 0 10px 18px -14px var(--accent);
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent);
+        border: 1px solid rgba(37, 99, 235, 0.3);
+        box-shadow: none;
+        justify-content: center;
       }
 
       button.primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 22px -14px rgba(37, 99, 235, 0.5);
+        background: rgba(37, 99, 235, 0.18);
+        border-color: rgba(37, 99, 235, 0.45);
+        transform: none;
       }
 
       button.ghost {
         background: transparent;
         color: var(--muted);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+      }
+
+      button.ghost.secondary {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+      }
+
+      button.ghost.secondary:hover {
+        border-color: rgba(148, 163, 184, 0.7);
+        color: var(--text);
       }
 
       button.danger {
         background: transparent;
         color: var(--danger);
+        border: 1px solid rgba(220, 38, 38, 0.3);
       }
 
       button:disabled {
@@ -155,6 +171,12 @@
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
+      }
+
+      button .btn-icon {
+        font-size: 0.8rem;
+        opacity: 0.75;
+        margin-right: 0.2rem;
       }
 
       form {
@@ -206,32 +228,6 @@
         color: var(--muted);
       }
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1.2rem;
-      }
-
-      thead th {
-        text-align: left;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-        padding: 0 0 0.7rem;
-        border-bottom: 1px solid var(--border);
-      }
-
-      tbody td {
-        padding: 0.9rem 0;
-        border-bottom: 1px solid var(--border);
-        vertical-align: middle;
-      }
-
-      tbody tr:last-child td {
-        border-bottom: none;
-      }
-
       .file-name {
         font-weight: 600;
         word-break: break-word;
@@ -243,10 +239,10 @@
         margin-top: 0.25rem;
       }
 
-      .actions {
+      .table-wrapper {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        flex-direction: column;
+        gap: 0.75rem;
       }
 
       .table-toolbar {
@@ -254,8 +250,171 @@
         justify-content: space-between;
         align-items: center;
         gap: 1rem;
-        margin-bottom: 0.6rem;
+        flex-wrap: wrap;
       }
+
+      .file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .file-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.9rem 1.1rem;
+        background: var(--card);
+        box-shadow: 0 8px 22px -20px rgba(15, 23, 42, 0.45);
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .file-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .file-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .file-card .file-name {
+        font-size: 1.05rem;
+        word-break: break-word;
+      }
+
+      .file-card .file-meta {
+        font-size: 0.8rem;
+      }
+
+      .file-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+      }
+
+      .file-badge {
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.45rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.08);
+        color: var(--muted);
+      }
+
+      .file-badge.is-public {
+        background: rgba(34, 197, 94, 0.12);
+        color: #047857;
+      }
+
+      .file-badge.is-private {
+        background: rgba(148, 163, 184, 0.16);
+        color: var(--muted);
+      }
+
+      .file-badge.is-preview {
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent);
+      }
+
+      .file-actions {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: center;
+        gap: 0.55rem;
+      }
+
+      .file-actions .action-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .file-actions .action-group > button {
+        flex: 1 1 0%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        min-height: 2.2rem;
+        width: 100%;
+      }
+
+      .file-actions .group-preview button {
+        min-width: 0;
+      }
+
+      .file-actions .group-download {
+        gap: 0.35rem;
+      }
+
+      .file-actions .group-manage {
+        gap: 0.4rem;
+        align-items: stretch;
+      }
+
+      .file-actions .group-manage .danger {
+        border-color: rgba(220, 38, 38, 0.4);
+      }
+
+      .file-empty {
+        padding: 1.2rem;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        text-align: center;
+        color: var(--muted);
+        background: rgba(148, 163, 184, 0.08);
+      }
+
+      .preview-content {
+        margin-top: 1rem;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.75rem;
+        background: rgba(148, 163, 184, 0.08);
+        display: grid;
+        place-items: center;
+        min-height: 200px;
+      }
+
+      .preview-content iframe,
+      .preview-content video,
+      .preview-content audio,
+      .preview-content img {
+        width: 100%;
+        max-height: 480px;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.04);
+      }
+
+      .preview-content audio {
+        max-height: none;
+        width: 100%;
+      }
+
+      .preview-content iframe,
+      .preview-content video {
+        min-height: 240px;
+      }
+
+      .preview-content pre {
+        width: 100%;
+        max-height: 400px;
+        overflow: auto;
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+
 
       #preview {
         display: none;
@@ -263,14 +422,6 @@
 
       #preview.active {
         display: block;
-      }
-
-      #preview img {
-        max-width: 100%;
-        border-radius: 16px;
-        border: 1px solid var(--border);
-        background: rgba(148, 163, 184, 0.08);
-        padding: 0.75rem;
       }
 
       #preview .caption {
@@ -293,32 +444,23 @@
         font-weight: 600;
       }
 
-      @media (max-width: 640px) {
-        table,
-        thead,
-        tbody,
-        th,
-        td,
-        tr {
-          display: block;
+      @media (max-width: 680px) {
+        .file-row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.75rem;
         }
 
-        thead {
-          display: none;
+        .file-actions {
+          gap: 0.5rem;
         }
 
-        tbody tr {
-          border-bottom: 1px solid var(--border);
-          padding: 1rem 0;
+        .file-actions .action-group {
+          width: 100%;
         }
 
-        tbody td {
-          border: none;
-          padding: 0.45rem 0;
-        }
-
-        .actions {
-          margin-top: 0.65rem;
+        .file-actions .action-group > button {
+          width: 100%;
         }
       }
     </style>
@@ -391,33 +533,19 @@
             <span id="file-count" class="file-meta"></span>
             <button id="refresh-button" class="ghost" type="button">Refresh</button>
           </div>
-          <table aria-describedby="file-count">
-            <thead>
-              <tr>
-                <th scope="col">File</th>
-                <th scope="col">Size</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="file-list">
-              <tr>
-                <td colspan="3" class="file-meta">Sign in to load files.</td>
-              </tr>
-            </tbody>
-          </table>
-          
+          <div id="file-list" class="file-list" role="list">
+            <div class="file-empty">Sign in to load files.</div>
+          </div>
         </div>
       </section>
 
-      <section id="preview" class="card" aria-label="Image preview">
+      <section id="preview" class="card" aria-label="File preview">
         <header style="display: flex; justify-content: space-between; align-items: center;">
           <h2 style="margin: 0; font-size: 1.2rem;">Preview</h2>
           <button id="close-preview" class="ghost" type="button">Close</button>
         </header>
-        <figure>
-          <img id="preview-image" alt="Preview" />
-          <figcaption id="preview-caption" class="caption"></figcaption>
-        </figure>
+        <div id="preview-content" class="preview-content"></div>
+        <p id="preview-caption" class="caption"></p>
       </section>
     </main>
 
