@@ -1,0 +1,36 @@
+{
+  "name": "filemanager",
+  "version": "1.0.0",
+  "description": "Secure file management service with upload, list, preview, and delete endpoints.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed"
+  },
+  "keywords": [
+    "file",
+    "upload",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.17.0",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "mime-types": "^3.0.1",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "prisma": "^5.17.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

@@ -1,0 +1,2 @@
+ALTER TABLE `files`
+  ADD COLUMN `is_public` TINYINT(1) NOT NULL DEFAULT 0;

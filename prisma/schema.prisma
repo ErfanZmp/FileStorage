@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  files        File[]
+  uploads      UploadSession[]
+
+  @@map("users")
+}
+
+model File {
+  id           Int      @id @default(autoincrement())
+  storedName   String   @unique @map("stored_name")
+  originalName String   @map("original_name")
+  mimeType     String?  @map("mime_type")
+  size         Int
+  isPublic     Boolean  @default(false) @map("is_public")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+  uploadedBy   Int?     @map("uploaded_by")
+  uploader     User?    @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@map("files")
+}
+
+model UploadSession {
+  id            String   @id @default(uuid())
+  originalName  String   @map("original_name")
+  storedName    String   @map("stored_name")
+  mimeType      String?  @map("mime_type")
+  size          Int
+  chunkSize     Int      @map("chunk_size")
+  totalChunks   Int      @map("total_chunks")
+  uploadedChunks Int     @default(0) @map("uploaded_chunks")
+  uploadedBy    Int?     @map("uploaded_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  uploader      User?    @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@map("upload_sessions")
+  @@index([uploadedBy])
+}

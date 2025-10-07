@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure File Manager</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --text: #1f2937;
+        --muted: #64748b;
+        --accent: #2563eb;
+        --accent-dark: #1d4ed8;
+        --danger: #dc2626;
+        --success: #047857;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --card: #111a2f;
+          --border: #1e293b;
+          --text: #e2e8f0;
+          --muted: #94a3b8;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      header.page-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .session-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 2.8vw, 2.4rem);
+      }
+
+      p.lead {
+        margin: 0;
+        color: var(--muted);
+        max-width: 540px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.75rem;
+        box-shadow: 0 18px 35px -28px rgba(15, 23, 42, 0.65);
+      }
+
+      .card header {
+        margin-bottom: 1rem;
+      }
+
+      label {
+        display: grid;
+        gap: 0.4rem;
+        font-size: 0.95rem;
+      }
+
+      input[type='text'],
+      input[type='password'] {
+        padding: 0.65rem 0.8rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: inherit;
+        font-size: 1rem;
+      }
+
+      input[type='file']::file-selector-button {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.05rem;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      input[type='file']::file-selector-button:hover {
+        background: var(--accent-dark);
+      }
+
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 999px;
+        padding: 0.6rem 1.1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 10px 18px -14px var(--accent);
+      }
+
+      button.primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 22px -14px rgba(37, 99, 235, 0.5);
+      }
+
+      button.ghost {
+        background: transparent;
+        color: var(--muted);
+      }
+
+      button.danger {
+        background: transparent;
+        color: var(--danger);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      form {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .form-row {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .split-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .split-row > * {
+        flex: 1 1 auto;
+      }
+
+      .file-input-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      .file-input-row input[type="file"] {
+        flex: 1 1 260px;
+      }
+
+      #status {
+        min-height: 1.25rem;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+
+      #status[data-variant='error'] {
+        color: var(--danger);
+      }
+
+      #status[data-variant='success'] {
+        color: var(--success);
+      }
+
+      #status[data-variant='info'] {
+        color: var(--muted);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1.2rem;
+      }
+
+      thead th {
+        text-align: left;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        padding: 0 0 0.7rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      tbody td {
+        padding: 0.9rem 0;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .file-name {
+        font-weight: 600;
+        word-break: break-word;
+      }
+
+      .file-meta {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 0.25rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .table-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.6rem;
+      }
+
+      #preview {
+        display: none;
+      }
+
+      #preview.active {
+        display: block;
+      }
+
+      #preview img {
+        max-width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(148, 163, 184, 0.08);
+        padding: 0.75rem;
+      }
+
+      #preview .caption {
+        margin-top: 0.5rem;
+        color: var(--muted);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .auth-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0.9rem;
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--accent);
+        border-radius: 999px;
+        font-weight: 600;
+      }
+
+      @media (max-width: 640px) {
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+        }
+
+        thead {
+          display: none;
+        }
+
+        tbody tr {
+          border-bottom: 1px solid var(--border);
+          padding: 1rem 0;
+        }
+
+        tbody td {
+          border: none;
+          padding: 0.45rem 0;
+        }
+
+        .actions {
+          margin-top: 0.65rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <div>
+          <h1>Secure File Manager</h1>
+          <p class="lead">
+            Protected file management with authenticated access, resumable uploads, and support for
+            images, documents, archives, and video up to 150&nbsp;MB.
+          </p>
+        </div>
+        <div class="session-controls">
+          <div id="user-panel" class="auth-badge hidden"></div>
+          <button id="logout-button" class="ghost hidden" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <section id="auth-card" class="card" aria-label="Sign in">
+        <header>
+          <h2 style="margin: 0;">Sign in</h2>
+          <p class="lead" style="margin-top: 0.5rem;">Use your administrator credentials to access the file console.</p>
+        </header>
+        <form id="login-form" autocomplete="off" novalidate>
+          <div class="form-row">
+            <label>
+              Username
+              <input type="text" id="login-username" name="username" autocomplete="username" required />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                id="login-password"
+                name="password"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+          </div>
+          <div class="split-row">
+            <button id="login-button" class="primary" type="button">Sign in</button>
+            <button id="login-reset" class="ghost" type="reset">Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="app-shell" class="card hidden" aria-label="File manager">
+        <header>
+          <h2 style="margin: 0 0 0.25rem;">Manage Files</h2>
+          <p class="lead" style="margin: 0;">Upload, resume, preview, download, or delete files securely.</p>
+        </header>
+
+        <form id="upload-form" class="form-row" aria-label="Upload file">
+          <div class="split-row">
+            <input type="file" name="file" id="file-input" required />
+            <button id="upload-button" class="primary" type="submit">Upload</button>
+          </div>
+          <div class="file-meta">
+            Supports images, documents, archives, audio/video, and other files up to 150&nbsp;MB (unsupported types are stored as generic binaries).
+          </div>
+        </form>
+
+        <div id="status" role="status" aria-live="polite"></div>
+
+        <div class="table-wrapper">
+          <div class="table-toolbar">
+            <span id="file-count" class="file-meta"></span>
+            <button id="refresh-button" class="ghost" type="button">Refresh</button>
+          </div>
+          <table aria-describedby="file-count">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Size</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="file-list">
+              <tr>
+                <td colspan="3" class="file-meta">Sign in to load files.</td>
+              </tr>
+            </tbody>
+          </table>
+          
+        </div>
+      </section>
+
+      <section id="preview" class="card" aria-label="Image preview">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 1.2rem;">Preview</h2>
+          <button id="close-preview" class="ghost" type="button">Close</button>
+        </header>
+        <figure>
+          <img id="preview-image" alt="Preview" />
+          <figcaption id="preview-caption" class="caption"></figcaption>
+        </figure>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
