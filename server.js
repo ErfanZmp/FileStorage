@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const session = require('express-session');
+const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { finished } = require('stream/promises');
 const { PrismaClient } = require('@prisma/client');
@@ -121,6 +122,25 @@ const streamWithRange = async (req, res, filePath, mimeType, { inlineName } = {}
   });
   stream.pipe(res);
 };
+
+const parseCorsOrigins = () => {
+  const value = process.env.CORS_ORIGINS;
+  if (!value) {
+    return true;
+  }
+  const origins = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return origins.length ? origins : true;
+};
+
+const fileCors = cors({
+  origin: parseCorsOrigins(),
+  methods: ['GET', 'HEAD', 'OPTIONS'],
+  credentials: false,
+  maxAge: 86400,
+});
 
 
 const sanitizeFilename = (originalName) => {
@@ -452,7 +472,8 @@ app.post('/api/upload/chunk', requireAuth, chunkUpload.single('chunk'), async (r
   }
 });
 
-app.get('/api/files/:id/preview', async (req, res) => {
+app.options('/api/files/:id/preview', fileCors);
+app.get('/api/files/:id/preview', fileCors, async (req, res) => {
   const fileId = req.params.id ? String(req.params.id).trim() : '';
   if (!fileId) {
     return res.status(400).json({ error: 'Invalid file id.' });
@@ -547,7 +568,8 @@ const setAttachmentHeaders = (res, fileName, mimeType, dataLength, range) => {
   );
 };
 
-app.get('/api/files/:id/download', async (req, res) => {
+app.options('/api/files/:id/download', fileCors);
+app.get('/api/files/:id/download', fileCors, async (req, res) => {
   const fileId = req.params.id ? String(req.params.id).trim() : '';
   if (!fileId) {
     return res.status(400).json({ error: 'Invalid file id.' });
