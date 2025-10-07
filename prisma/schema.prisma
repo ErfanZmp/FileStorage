@@ -19,7 +19,7 @@ model User {
 }
 
 model File {
-  id           Int      @id @default(autoincrement())
+  id           String   @id @default(uuid())
   storedName   String   @unique @map("stored_name")
   originalName String   @map("original_name")
   mimeType     String?  @map("mime_type")
