@@ -16,8 +16,8 @@ const prisma = new PrismaClient();
 
 const PORT = Number(process.env.PORT) || 3001;
 const MAX_FILE_SIZE = 150 * 1024 * 1024; // 150 MB
-const DEFAULT_CHUNK_SIZE = Number(process.env.CHUNK_SIZE || 8 * 1024 * 1024); // 8 MB
-const CHUNK_UPLOAD_LIMIT = DEFAULT_CHUNK_SIZE * 1.25;
+const DEFAULT_CHUNK_SIZE = Number(process.env.CHUNK_SIZE || 2 * 1024 * 1024); // default 2 MB
+const CHUNK_UPLOAD_LIMIT = Math.ceil(DEFAULT_CHUNK_SIZE * 1.5);
 const IMAGE_MIME_PREFIX = 'image/';
 const UPLOAD_DIR = path.resolve(__dirname, 'uploads');
 const CHUNKS_DIR = path.join(UPLOAD_DIR, '.chunks');

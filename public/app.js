@@ -24,7 +24,7 @@ const closePreview = document.getElementById('close-preview');
 
 const state = {
   user: null,
-  chunkSize: 8 * 1024 * 1024,
+  chunkSize: 2 * 1024 * 1024,
   files: [],
 };
 

@@ -6,7 +6,7 @@ A hardened file management console built with Express, Multer, Prisma ORM, and M
 
 - **Authentication** – Session-based username/password login secured with bcrypt hashes.
 - **Prisma-powered data layer** – Declarative schema, safe migrations, and typed access via Prisma Client.
-- **Resumable uploads** – Chunked upload pipeline (default 8 MB chunks) with automatic assembly and validation up to 150 MB.
+- **Resumable uploads** – Chunked upload pipeline (default 2 MB chunks, configurable via `CHUNK_SIZE`) with automatic assembly and validation up to 150 MB.
 - **Link sharing** – Toggle per-file visibility for public downloads and copy shareable download/preview links instantly.
 - **Safe file handling** – Sanitised filenames, strict MIME/extension allowlist (images, documents, archives, video), configurable chunk size.
 - **Media-friendly downloads** – HTTP Range support for partial downloads/streaming.
@@ -64,7 +64,8 @@ All endpoints require an authenticated session unless noted.
 
 - **Schema changes** – Modify `prisma/schema.prisma`, then run `npx prisma migrate dev --name <description>` to generate migrations.
 - **Seeding** – `npx prisma db seed` creates the default admin user when `ADMIN_USERNAME/ADMIN_PASSWORD` are present.
-- **Chunk size** – Override `CHUNK_SIZE` in the environment to tune chunk uploads (defaults to 8 MB).
+- **Chunk size** – Override `CHUNK_SIZE` in the environment to tune upload chunk size (e.g. set to 1048576 for 1 MB chunks when behind strict proxies).
+
 - **Sessions** – The bundled `express-session` MemoryStore suits development only. For production, configure a durable session store (Redis, external DB, etc.).
 - **TLS** – Terminate HTTPS (reverse proxy or Node TLS) to protect credentials and session cookies.
 - **Backups** – Back up both the `uploads/` directory and the MariaDB database to restore files and metadata together.
